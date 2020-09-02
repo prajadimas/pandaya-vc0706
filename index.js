@@ -1,11 +1,11 @@
 const path = require('path')
 const jimp = require('jimp')
 const SerialPort = require('serialport')
-const ByteLength = require('@serialport/parser-byte-length')
 
 function sendSync(serialPort, src, length) {
 	return new Promise((resolve, reject) => {
 		serialPort.write(src);
+		const ByteLength = require('@serialport/parser-byte-length')
 		if (!length) {
 			serialPort.once('data', (data) => {
 				// console.log('Data: ', data)
@@ -117,7 +117,7 @@ async function captureImageData(address, baudrate) {
 		console.log('Image Length: ', ackImageLength)
 		var ackImageData = await getImageData(port, ackImageLength.buff, ackImageLength.length)
 		console.log('Image Data: ', ackImageData)
-		resolve(ackImageData)
+		resolve(ackImageData.toString('base64'))
 		/* setTimeout(async function () {
 			var ackTakingImage = await takingImage(port)
 			console.log('Taking Image: ', ackTakingImage)
@@ -127,7 +127,7 @@ async function captureImageData(address, baudrate) {
 			console.log('Image Length: ', ackImageLength)
 			var ackImageData = await getImageData(port, ackImageLength.buff, ackImageLength.length)
 			console.log('Image Data: ', ackImageData)
-			resolve(ackImageData)
+			resolve(ackImageData.toString('base64'))
 		}, 300)
 		setTimeout(async function () {
 			var ackImageLength = await getImageLength(port)
