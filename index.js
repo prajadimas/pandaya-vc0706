@@ -3,6 +3,8 @@ const jimp = require('jimp')
 const SerialPort = require('serialport')
 const io = require('socket.io-client')
 
+var port = null
+
 function sendSync(serialPort, src, length) {
 	return new Promise((resolve, reject) => {
 		serialPort.write(src);
@@ -71,10 +73,11 @@ function stopImage(serialPort) {
 
 function getImageLength(serialPort) {
 	return new Promise((resolve, reject) => {
-		sendSync(serialPort, Buffer.from([0x56, 0x00, 0x34, 0x01, 0x00]))
+		sendSync(serialPort, Buffer.from([0x56, 0x00, 0x34, 0x01, 0x00]), 9)
 		.then(ack => {
 			var arrImgCmd = []
-			var length = ack.readUIntBE(ack.length - 2, 2)
+			// var length = ack.readUInt16BE(ack.length - 2, 2)
+			var length = ack.slice(ack.length - 2, ack.length).readUInt16BE()
 			arrImgCmd.push(Buffer.from([0x56, 0x00, 0x32, 0x0C, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
 			arrImgCmd.push(ack.slice(ack.length - 2, ack.length))
 			arrImgCmd.push(Buffer.from([0x00, 0x0A]))
@@ -94,8 +97,9 @@ function getImageData(serialPort, buff, length) {
 		const LengthParser = require('@serialport/parser-byte-length')
 		const imgDataParser = serialPort.pipe(new LengthParser({ length: length }))
 		imgDataParser.on('data', (data) => {
-			// console.log('Data: ', data)
-			resolve(data.slice(5, (data.length - 5)))
+			console.log('Data: ', data)
+			resolve(data.slice(5, data.length - 5))
+			// resolve(data)
 		})
 		imgDataParser.on('error', (err) => {
 			reject(err)
@@ -106,20 +110,32 @@ function getImageData(serialPort, buff, length) {
 async function captureImageData(address, baudrate) {
 	return new Promise(async (resolve, reject) => {
 		console.log('Capture Image')
-		var port = new SerialPort(address, {
-			baudRate: baudrate
-		})
+		if (port) {
+			if (port.isOpen) {
+				port.close()
+			}
+			port = new SerialPort(address, {
+				baudRate: baudrate
+			})
+		} else {
+			port = new SerialPort(address, {
+				baudRate: baudrate
+			})
+		}
 		// var ackReset = await reset(port)
 		// console.log('Reset: ', ackReset)
-		// var ackStopImage = await stopImage(port)
-		// console.log('Stop Image: ', ackStopImage)
-		// var ackRecover = await recover(port)
-		// console.log('Recovery: ', ackRecover)
+		var ackStopImage = await stopImage(port)
+		console.log('Stop Image: ', ackStopImage)
 		var ackImageLength = await getImageLength(port)
 		console.log('Image Length: ', ackImageLength)
-		var ackImageData = await getImageData(port, ackImageLength.buff, ackImageLength.length)
+		var ackImageData = await getImageData(port, ackImageLength.buff, ackImageLength.length + 10)
 		console.log('Image Data: ', ackImageData)
-		resolve(ackImageData.toString('base64'))
+		// console.log('Last Image Data', ackImageData.slice((ackImageData.length - 5), ackImageData.length))
+		// port.close()
+		var ackRecover = await recover(port)
+		console.log('Recovery: ', ackRecover)
+		// resolve(ackImageData.toString('base64'))
+		resolve(ackImageData)
 		/* setTimeout(async function () {
 			var ackStopImage = await stopImage(port)
 			console.log('Stop Image: ', ackStopImage)
@@ -130,6 +146,7 @@ async function captureImageData(address, baudrate) {
 			var ackImageData = await getImageData(port, ackImageLength.buff, ackImageLength.length)
 			console.log('Image Data: ', ackImageData)
 			resolve(ackImageData.toString('base64'))
+			resolve(ackImageData)
 		}, 300)
 		setTimeout(async function () {
 			var ackImageLength = await getImageLength(port)
@@ -148,7 +165,7 @@ try {
 	var config = {
 		address: '/dev/ttyS0',
 		baudrate: 38400,
-		interval: 5000
+		interval: 20000
 	}
 	socket.on('connect', function () {
 		socket.emit('client', 'pandaya-vc0706')
@@ -160,12 +177,26 @@ try {
 		setInterval(function () {
 			captureImageData(config.address, config.baudrate)
 			.then(res => {
-				console.log('Result: ', res)
-				socket.emit('data', {
-					timestamp: new Date().getTime(),
-					data: {
-						image: 'data:image/jpeg;base64,' + res
-					}
+				jimp.read(res)
+				.then(image => {
+					image
+					.quality(80)
+					.getBase64(jimp.MIME_JPEG, function (err, src) {
+						if (err) {
+							console.error(err)
+						} else {
+							console.log('Result: ', src)
+							socket.emit('data', {
+								timestamp: new Date().getTime(),
+								data: {
+									image: src
+								}
+							})
+						}
+					})
+				})
+				.catch(err => {
+					console.error(err)
 				})
 			})
 			.catch(err => {
