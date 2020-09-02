@@ -70,7 +70,7 @@ function takingImage(serialPort) {
 
 function getImageLength(serialPort) {
 	return new Promise((resolve, reject) => {
-		sendSync(serialPort, Buffer.from([0x56, 0x00, 0x34, 0x01, 0x00]), 9)
+		sendSync(serialPort, Buffer.from([0x56, 0x00, 0x34, 0x01, 0x00]))
 		.then(ack => {
 			var length = ack.readUIntBE(ack.length - 2, 2)
 			arrImgCmd.push(Buffer.from([0x56, 0x00, 0x32, 0x0C, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
@@ -93,7 +93,7 @@ function getImageData(serialPort, buff, length) {
 		const imgDataParser = serialPort.pipe(new LengthParser({ length: length }))
 		imgDataParser.on('data', (data) => {
 			// console.log('Data: ', data)
-			resolve(data)
+			resolve(data.slice(5, (data.length - 5)))
 		})
 		imgDataParser.on('error', (err) => {
 			reject(err)
