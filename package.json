@@ -1,0 +1,21 @@
+{
+  "name": "pandaya-vc0706",
+  "version": "1.0.0",
+  "description": "Module to Read Serial Camera Data for Pandaya+ Device",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "pandaya+",
+    "vc0706",
+    "serial"
+  ],
+  "author": "prajadimas",
+  "license": "ISC",
+  "dependencies": {
+    "jimp": "^0.16.1",
+    "serialport": "^9.0.1",
+    "socket.io-client": "^2.3.0"
+  }
+}
