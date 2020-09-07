@@ -131,7 +131,6 @@ async function captureImageData(address, baudrate) {
 		var ackImageData = await getImageData(port, ackImageLength.buff, ackImageLength.length + 10)
 		console.log('Image Data: ', ackImageData)
 		// console.log('Last Image Data', ackImageData.slice((ackImageData.length - 5), ackImageData.length))
-		// port.close()
 		var ackRecover = await recover(port)
 		console.log('Recovery: ', ackRecover)
 		// resolve(ackImageData.toString('base64'))
@@ -165,7 +164,7 @@ try {
 	var config = {
 		address: '/dev/ttyS0',
 		baudrate: 38400,
-		interval: 20000
+		interval: 30000
 	}
 	socket.on('connect', function () {
 		socket.emit('client', 'pandaya-vc0706')
@@ -177,10 +176,11 @@ try {
 		setInterval(function () {
 			captureImageData(config.address, config.baudrate)
 			.then(res => {
+				var imageName = new Date().getTime().toString() + '.jpg'
 				jimp.read(res)
 				.then(image => {
 					image
-					.quality(80)
+					.quality(100)
 					.getBase64(jimp.MIME_JPEG, function (err, src) {
 						if (err) {
 							console.error(err)
@@ -194,6 +194,7 @@ try {
 							})
 						}
 					})
+					// .write(path.resolve(__dirname, 'output', imageName))
 				})
 				.catch(err => {
 					console.error(err)
